@@ -1,32 +1,34 @@
+__author__ = 'ltesti - 3 Nov 2016'
+
+from __future__ import division, print_function
 
 import numpy as np
 import scipy.signal as ssig
 
-from astroquery.irsa import Irsa
-import astropy.units as u
-import astropy.coordinates as coord
+#from astroquery.irsa import Irsa
+#import astropy.units as u
+#import astropy.coordinates as coord
 import astropy.io.fits as aiof
 
 import matplotlib.pyplot as plt
-import matplotlib.mlab as mlab
-%matplotlib inline
 
-import aplpy
+#import aplpy
 
 import os
 
 class StarDataset(object):
     
-    def __init__(self, datadir, fname, startframes, outname, nfrpos=200, frame_size=400):
+    def __init__(self, datadir, fname, startframes, outname, nfrpos=200, frame_size=400, fill_nan=True):
         self.datadir = datadir
         self.fname = fname
         self.startframes = startframes
         self.outname = outname
         self.nfrpos = nfrpos
         self.frame_size = frame_size
+        self.fill_nan = fill_nan
         self.abcycles = []
         for startframe in self.startframes:
-            self.abcycles.append(ABCycle(self.datadir, self.fname, startframe))
+            self.abcycles.append(ABCycle(self.datadir, self.fname, startframe, fill_nan = self.fill_nan))
             
     def do_framescube(self):
         self.framescube = np.zeros((len(self.startframes)*2*self.nfrpos,self.frame_size,self.frame_size))
@@ -78,7 +80,8 @@ class ABCycle(object):
             i1 = myImage(f1, y1, y2, x1, x2, fill_nan = self.fill_nan)
             i2 = myImage(f2, y1, y2, x1, x2, fill_nan = self.fill_nan)
             mycube[i,:,:] = i1.data - i2.data
-            mynanmasks.append([i1.nan_idx(),i2.nan_idx()])
+            mynanmasks.append(i1.nan_idx())
+            mynanmasks.append(i2.nan_idx())
             myparangs[i,0] = i1.parang
             myparangs[i,1] = i2.parang
         #
@@ -119,6 +122,12 @@ class ABCycle(object):
         xc = np.nansum((x*d*d))/dtot
         yc = np.nansum((y*d*d))/dtot
         return xc, yc
+
+    def __outmedian(self, data, radius):
+        cen = np.shape(data)
+        y,x = np.mgrid[0:cen[0]-1:cen[0]*1j,0:cen[1]-1:cen[1]*1j]
+        wm = np.where((y-cen[0]/2.)*(y-cen[0]/2.)+(x-cen[1]/2.)*(x-cen[1]/2.) >= radius*radius)
+        return np.nanmedian(data[wm])
     
     def __get_subimages(self, plane = 0, subimsiz = 400, dd = 100, submed = True):
         #
@@ -141,10 +150,16 @@ class ABCycle(object):
             #print("dy = {0} dfac = {1}".format(mydy,dfac))
             xc, yc = self.__get_centroid(dfac*data, y1, y2, x1, x2, dd)
             #print("   xc = {0} yc = {1}".format(xc,yc))
+            if self.fill_nan:
+                data[self.nanmasks[2*plane]] = np.nan
+                data[self.nanmasks[2*plane+1]] = np.nan
             # extract data
             ixc = int(round(xc))
             iyc = int(round(yc))
             subims[i,:,:] = dfac*data[iyc-subimsiz/2:iyc+subimsiz/2,ixc-subimsiz/2:ixc+subimsiz/2]
+            if submed:
+                radius = 2./3.*(float(subimsiz)/2.)
+                subims[i,:,:] = subims[i,:,:] - self.__outmedian(subims[i,:,:], radius)
         #
         return subims[0,:,:],subims[1,:,:]
     
