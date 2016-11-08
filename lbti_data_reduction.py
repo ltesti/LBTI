@@ -1,9 +1,10 @@
-__author__ = 'ltesti - 3 Nov 2016'
-
 from __future__ import division, print_function
+
+__author__ = 'ltesti - 3 Nov 2016'
 
 import numpy as np
 import scipy.signal as ssig
+import scipy.ndimage as snd
 
 #from astroquery.irsa import Irsa
 #import astropy.units as u
@@ -16,9 +17,13 @@ import matplotlib.pyplot as plt
 
 import os
 
+# local package functions
+import inpaint 
+
 class StarDataset(object):
-    
-    def __init__(self, datadir, fname, startframes, outname, nfrpos=200, frame_size=400, fill_nan=True):
+
+    def __init__(self, datadir, fname, startframes, outname, nfrpos=200, 
+                 frame_size=400, fill_nan=True, resize=None):
         self.datadir = datadir
         self.fname = fname
         self.startframes = startframes
@@ -27,19 +32,28 @@ class StarDataset(object):
         self.frame_size = frame_size
         self.fill_nan = fill_nan
         self.abcycles = []
+        self.resize = resize
+        #
+        # output frame size (may need resampling)
+        if self.resize == None:
+            self.out_frame_size = self.frame_size
+        else:
+            self.out_frame_size = self.frame_size*self.resize
+        #
         for startframe in self.startframes:
             self.abcycles.append(ABCycle(self.datadir, self.fname, startframe, fill_nan = self.fill_nan))
             
     def do_framescube(self):
-        self.framescube = np.zeros((len(self.startframes)*2*self.nfrpos,self.frame_size,self.frame_size))
+        self.framescube = np.zeros((len(self.startframes)*2*self.nfrpos,self.out_frame_size,self.out_frame_size))
         for i in range(len(self.startframes)):
-            self.abcycles[i].get_framescube(frame_size=self.frame_size)
+            self.abcycles[i].get_framescube(frame_size=self.frame_size, resize=self.resize)
             self.framescube[i*(2*self.nfrpos):i*(2*self.nfrpos)+2*self.nfrpos,:,:] = self.abcycles[i].framescube
             
 
 class ABCycle(object):
     
-    def __init__(self, datadir, fname, startframe, fill_nan = False, nfrpos = 200, width = 600, height = 1024, xcen = 615, ylow = 340, dy = 425, plscale = 10.707):
+    def __init__(self, datadir, fname, startframe, fill_nan = False, nfrpos = 200, width = 600, 
+                 height = 1024, xcen = 615, ylow = 340, dy = 425, plscale = 10.707):
         self.datadir = datadir
         self.fill_nan = fill_nan
         self.fname = fname
@@ -128,11 +142,39 @@ class ABCycle(object):
         y,x = np.mgrid[0:cen[0]-1:cen[0]*1j,0:cen[1]-1:cen[1]*1j]
         wm = np.where((y-cen[0]/2.)*(y-cen[0]/2.)+(x-cen[1]/2.)*(x-cen[1]/2.) >= radius*radius)
         return np.nanmedian(data[wm])
+
+    #
+    # This procedure recenter the image to a float dx, dx
+    #   note that this shift is assumed to be small.
+    #   The image is resampled using a kernel interpolation scheme.
+    def __do_recenter(self, image, dx, dy, kernel_size=3):
+        y,x = np.mgrid[0:np.shape(image)[0]-1:np.shape(image)[0]*1j,
+                       0:np.shape(image)[1]-1:np.shape(image)[1]*1j]
+        x = x + dx
+        y = y + dy
+        dk = int(kernel_size/2.)
+        dk = kernel_size
+        xn = np.where(x < dk)
+        xp = np.where(x > np.shape(image)[1]-1-dk)
+        yn = np.where(y < dk)
+        yp = np.where(y > np.shape(image)[0]-1-dk)
+        x[xn] = dk
+        x[xp] = np.shape(image)[1]-1-dk
+        y[yn] = dk
+        y[yp] = np.shape(image)[0]-1-dk
+        return inpaint.sincinterp(image, x,  y, kernel_size=kernel_size )
+
     
-    def __get_subimages(self, plane = 0, subimsiz = 400, dd = 100, submed = True):
+    def __get_subimages(self, plane = 0, subimsiz = 400, dd = 100, submed = True, 
+                        resize = None, recenter = True):
         #
         # define subsection
+        if resize == None:
+            outsize = subimsiz
+        else:
+            outsize = resize * subimsiz
         subims = np.zeros((2,subimsiz,subimsiz))
+        outims = np.zeros((2,outsize,outsize))
         mydylist = [0, self.dy]
         #
         data = self.subcube[plane,:,:] 
@@ -157,17 +199,44 @@ class ABCycle(object):
             ixc = int(round(xc))
             iyc = int(round(yc))
             subims[i,:,:] = dfac*data[iyc-subimsiz/2:iyc+subimsiz/2,ixc-subimsiz/2:ixc+subimsiz/2]
+            #
+            # subtract median values from the edges of the map
             if submed:
                 radius = 2./3.*(float(subimsiz)/2.)
                 subims[i,:,:] = subims[i,:,:] - self.__outmedian(subims[i,:,:], radius)
+            #
+            # resample the images, recenter and interpolate.
+            if resize == None:
+                outims[i,:,:] = subims[i,:,:]
+            else:
+                # This procedure is described in
+                # http://astrolitterbox.blogspot.de/2012/03/healing-holes-in-arrays-in-python.html
+                myMask = (np.isnan(subims[i,:,:]))
+                myMaskedImg = np.ma.array(subims[i,:,:], mask=myMask)
+                NANMask =  myMaskedImg.filled(np.NaN)
+                myBadArrays, my_num_BadArrays = snd.label(myMask)
+                my_data_slices = snd.find_objects(myBadArrays)
+                filled = inpaint.replace_nans(NANMask, 5, 0.5, 2, 'idw')
+                zoom_filled = snd.zoom(filled, resize, order=3)
+                if recenter:
+                    zoom_filled = self.__do_recenter(zoom_filled, resize * (xc - float(ixc)), resize * (yc - float(iyc)))
+                zoom_mask = snd.zoom(myMask, resize, order=0)
+                myZoomFilled = np.ma.array(zoom_filled, mask=zoom_mask)
+                outims[i,:,:] = myZoomFilled.filled(np.NaN)
+            #
         #
-        return subims[0,:,:],subims[1,:,:]
+        return outims[0,:,:],outims[1,:,:]
     
-    def get_framescube(self, frame_size=400):
+    def get_framescube(self, frame_size=400, resize=None):
         #
-        self.framescube = np.zeros((self.nfrpos*2, frame_size, frame_size))
+        if resize == None:
+            self.framescube = np.zeros((self.nfrpos*2, frame_size, frame_size))
+        else:
+            self.framescube = np.zeros((self.nfrpos*2, resize*frame_size, resize*frame_size))
+        #
         for i in range(self.nfrpos):
-            self.framescube[i*2], self.framescube[i*2+1] = self.__get_subimages(plane = i, subimsiz = frame_size)
+            self.framescube[i*2], self.framescube[i*2+1] = \
+                      self.__get_subimages(plane = i, subimsiz = frame_size, resize = resize)
     
     
 class myImage(object):
