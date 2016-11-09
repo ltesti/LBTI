@@ -6,6 +6,8 @@ import numpy as np
 import scipy.signal as ssig
 import scipy.ndimage as snd
 
+from multiprocessing import Pool
+
 #from astroquery.irsa import Irsa
 #import astropy.units as u
 #import astropy.coordinates as coord
@@ -15,10 +17,49 @@ import matplotlib.pyplot as plt
 
 #import aplpy
 
+import time
 import os
+
+# logging
+import logging
 
 # local package functions
 import inpaint 
+
+    #log = logging.getLogger()
+    #log.setLevel(LOG_LEVEL)
+    #logfile = logging.FileHandler(filename=LOG_FILENAME, mode='w')
+    #logfile.setFormatter(logging.Formatter(LOG_FORMAT))
+    #log.addHandler(logfile)
+
+    #logging.info("")
+    #logging.info("****************************************************")
+    #logging.info("*****************      PyVFit      *****************")
+    #logging.info("****************************************************")
+
+#
+# From stackoverflow comment, how to make a method pickleable
+# http://stackoverflow.com/questions/1816958/cant-pickle-type-instancemethod-when-using-pythons-multiprocessing-pool-ma/7309686#7309686
+from copy_reg import pickle
+from types import MethodType
+
+def _pickle_method(method):
+    func_name = method.im_func.__name__
+    obj = method.im_self
+    cls = method.im_class
+    return _unpickle_method, (func_name, obj, cls)
+
+def _unpickle_method(func_name, obj, cls):
+    for cls in cls.mro():
+        try:
+            func = cls.__dict__[func_name]
+        except KeyError:
+            pass
+        else:
+            break
+    return func.__get__(obj, cls)
+
+pickle(MethodType, _pickle_method, _unpickle_method)
 
 class StarDataset(object):
 
@@ -34,21 +75,68 @@ class StarDataset(object):
         self.abcycles = []
         self.resize = resize
         #
+        self.log_level = 20
+        self.log_filename = 'local.log'
+        self.log_filemode = 'w'
+        self.log = self.init_logs()
+        #
         # output frame size (may need resampling)
         if self.resize == None:
             self.out_frame_size = self.frame_size
         else:
             self.out_frame_size = self.frame_size*self.resize
         #
+        ts = time.time()
+        logging.info("Starting to set up the AB cycles")
         for startframe in self.startframes:
+            tss = time.time()
             self.abcycles.append(ABCycle(self.datadir, self.fname, startframe, fill_nan = self.fill_nan))
+            tss = time.time() - tss
+            logging.info("  Initialized block starting at {0}, time {1}s".format(startframe,tss))
+        tset = time.time() - ts
+        logging.info("--> Setup of {0} AB-Cycles complete, time {1}s".format(len(self.startframes),tset))
+
+    def init_logs(self):
+        """
+        Initialize the logging system.
+
+        Parameters
+        ----------
+        log_levels: integer
+            Level of logging. 10: logging.DEBUG, 20: logging.INFO, 30: logging.WARNING, 40: logging.ERROR, 50: logging.CRITICAL
+
+        """
+        log_format = '%(asctime)-15s %(name)-25s %(levelname)-8s %(message)s'
+
+        log = logging.getLogger()
+        log.setLevel(self.log_level)
+        logfile = logging.FileHandler(filename=self.log_filename, mode=self.log_filemode)
+        logfile.setFormatter(logging.Formatter(log_format))
+        log.addHandler(logfile)
+
+        logging.info("")
+        logging.info("*****************************************************")
+        logging.info("***********      LBTI Data Reduction      ***********")
+        logging.info("*****************************************************")
+
+        return log
             
-    def do_framescube(self):
+    def do_framescube(self, multi=False):
+        ts = time.time()
+        logging.info("Starting the extraction of subcubes")
         self.framescube = np.zeros((len(self.startframes)*2*self.nfrpos,self.out_frame_size,self.out_frame_size))
         for i in range(len(self.startframes)):
-            self.abcycles[i].get_framescube(frame_size=self.frame_size, resize=self.resize)
+            tss = time.time()
+            if multi:
+                self.abcycles[i].get_framescube_multiproc(frame_size=self.frame_size, resize=self.resize)
+            else:
+                self.abcycles[i].get_framescube(frame_size=self.frame_size, resize=self.resize)
             self.framescube[i*(2*self.nfrpos):i*(2*self.nfrpos)+2*self.nfrpos,:,:] = self.abcycles[i].framescube
-            
+            tss = time.time() - tss
+            logging.info("  subcube extracted for block starting at {0}, time {1}s".format(self.startframes[i],tss))
+        tscu = time.time() - ts
+        logging.info("--> Extraction of {0} subcubes complete, time {1}s".format(len(self.startframes),tscu))
+           
 
 class ABCycle(object):
     
@@ -67,6 +155,7 @@ class ABCycle(object):
         self.plscale = plscale
         self.filenames = self.__get_filenames()
         self.subcube, self.nanmasks, self.parangs = self.__fillcube()
+        self.have_framescube = False
         
     # This method creates an array with all the file names
     def __get_filenames(self):
@@ -165,8 +254,15 @@ class ABCycle(object):
         return inpaint.sincinterp(image, x,  y, kernel_size=kernel_size )
 
     
-    def __get_subimages(self, plane = 0, subimsiz = 400, dd = 100, submed = True, 
-                        resize = None, recenter = True):
+    #def __get_subimages(self, plane = 0, subimsiz = 400, dd = 100, submed = True, 
+    #                    resize = None):
+    def __get_subimages(self, par):
+        plane = par[0]
+        subimsiz = par[1]
+        dd = par[2]
+        submed = par[3]
+        resize = par[4]
+        recenter = par[5]
         #
         # define subsection
         if resize == None:
@@ -174,7 +270,7 @@ class ABCycle(object):
         else:
             outsize = resize * subimsiz
         subims = np.zeros((2,subimsiz,subimsiz))
-        outims = np.zeros((2,outsize,outsize))
+        #outims = np.zeros((2,outsize,outsize))
         mydylist = [0, self.dy]
         #
         data = self.subcube[plane,:,:] 
@@ -207,7 +303,7 @@ class ABCycle(object):
             #
             # resample the images, recenter and interpolate.
             if resize == None:
-                outims[i,:,:] = subims[i,:,:]
+                self.framescube[plane*2+i] = subims[i,:,:]
             else:
                 # This procedure is described in
                 # http://astrolitterbox.blogspot.de/2012/03/healing-holes-in-arrays-in-python.html
@@ -222,21 +318,48 @@ class ABCycle(object):
                     zoom_filled = self.__do_recenter(zoom_filled, resize * (xc - float(ixc)), resize * (yc - float(iyc)))
                 zoom_mask = snd.zoom(myMask, resize, order=0)
                 myZoomFilled = np.ma.array(zoom_filled, mask=zoom_mask)
-                outims[i,:,:] = myZoomFilled.filled(np.NaN)
+                self.framescube[plane*2+i] = myZoomFilled.filled(np.NaN)
             #
         #
-        return outims[0,:,:],outims[1,:,:]
     
-    def get_framescube(self, frame_size=400, resize=None):
+    #
+    # Non parallel version (executes each image sequentially)
+    def get_framescube(self, frame_size=400, resize=None, recenter=False):
         #
+        dd = 100
+        submed = True
         if resize == None:
             self.framescube = np.zeros((self.nfrpos*2, frame_size, frame_size))
         else:
             self.framescube = np.zeros((self.nfrpos*2, resize*frame_size, resize*frame_size))
+        self.have_framescube = True
         #
         for i in range(self.nfrpos):
-            self.framescube[i*2], self.framescube[i*2+1] = \
-                      self.__get_subimages(plane = i, subimsiz = frame_size, resize = resize)
+            par = ( i, frame_size, dd, submed, resize, recenter)
+            self.__get_subimages(par)
+
+    #
+    # Attempt at parallelization: 
+    def get_framescube_multiproc(self, frame_size=400, resize=None, recenter=False):
+        #
+        dd = 100
+        submed = True
+        if resize == None:
+            self.framescube = np.zeros((self.nfrpos*2, frame_size, frame_size))
+        else:
+            self.framescube = np.zeros((self.nfrpos*2, resize*frame_size, resize*frame_size))
+        self.have_framescube = True
+        #
+        pool = Pool(processes=self.nfrpos)
+        allpars=[]
+        for i in range(self.nfrpos):
+            allpars.append(( i, frame_size, dd, submed, resize))
+        pool.map(self.__get_subimages, allpars)
+        #results = [ \
+        #     pool.apply_async(self.__get_subimages, ( i, frame_size, dd, submed, resize)) \
+        #     for i in range(self.nfrpos)]
+        pool.close()
+        pool.join()
     
     
 class myImage(object):
