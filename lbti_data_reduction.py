@@ -7,6 +7,7 @@ import scipy.signal as ssig
 import scipy.ndimage as snd
 
 from multiprocessing import Pool
+import dill
 
 #from astroquery.irsa import Irsa
 #import astropy.units as u
@@ -37,29 +38,45 @@ import inpaint
     #logging.info("*****************      PyVFit      *****************")
     #logging.info("****************************************************")
 
+## This did not worked
+##
+## From stackoverflow comment, how to make a method pickleable
+## http://stackoverflow.com/questions/1816958/cant-pickle-type-instancemethod-when-using-pythons-multiprocessing-pool-ma/7309686#7309686
+#from copy_reg import pickle
+#from types import MethodType
 #
-# From stackoverflow comment, how to make a method pickleable
-# http://stackoverflow.com/questions/1816958/cant-pickle-type-instancemethod-when-using-pythons-multiprocessing-pool-ma/7309686#7309686
-from copy_reg import pickle
-from types import MethodType
+#def _pickle_method(method):
+#    func_name = method.im_func.__name__
+#    obj = method.im_self
+#    cls = method.im_class
+#    return _unpickle_method, (func_name, obj, cls)
+#
+#def _unpickle_method(func_name, obj, cls):
+#    for cls in cls.mro():
+#        try:
+#            func = cls.__dict__[func_name]
+#        except KeyError:
+#            pass
+#        else:
+#            break
+#    return func.__get__(obj, cls)
+#
+#pickle(MethodType, _pickle_method, _unpickle_method)
 
-def _pickle_method(method):
-    func_name = method.im_func.__name__
-    obj = method.im_self
-    cls = method.im_class
-    return _unpickle_method, (func_name, obj, cls)
+# trying another one from:
+# http://stackoverflow.com/questions/8804830/python-multiprocessing-pickling-error/24673524#24673524
+def run_dill_encoded(payload):
+    fun, args = dill.loads(payload)
+    return fun(*args)
 
-def _unpickle_method(func_name, obj, cls):
-    for cls in cls.mro():
-        try:
-            func = cls.__dict__[func_name]
-        except KeyError:
-            pass
-        else:
-            break
-    return func.__get__(obj, cls)
+def apply_async(pool, fun, args):
+    payload = dill.dumps((fun, args))
+    return pool.apply_async(run_dill_encoded, (payload,))
 
-pickle(MethodType, _pickle_method, _unpickle_method)
+def map(pool, fun, args):
+    payload = dill.dumps((fun, args))
+    return pool.map(run_dill_encoded, (payload,))
+
 
 class StarDataset(object):
 
@@ -90,7 +107,7 @@ class StarDataset(object):
         logging.info("Starting to set up the AB cycles")
         for startframe in self.startframes:
             tss = time.time()
-            self.abcycles.append(ABCycle(self.datadir, self.fname, startframe, fill_nan = self.fill_nan))
+            self.abcycles.append(ABCycle(self.datadir, self.fname, startframe, fill_nan = self.fill_nan, nfrpos=self.nfrpos))
             tss = time.time() - tss
             logging.info("  Initialized block starting at {0}, time {1}s".format(startframe,tss))
         tset = time.time() - ts
@@ -121,16 +138,16 @@ class StarDataset(object):
 
         return log
             
-    def do_framescube(self, multi=False):
+    def do_framescube(self, multi=False, recenter=False):
         ts = time.time()
         logging.info("Starting the extraction of subcubes")
         self.framescube = np.zeros((len(self.startframes)*2*self.nfrpos,self.out_frame_size,self.out_frame_size))
         for i in range(len(self.startframes)):
             tss = time.time()
             if multi:
-                self.abcycles[i].get_framescube_multiproc(frame_size=self.frame_size, resize=self.resize)
+                self.abcycles[i].get_framescube_multiproc(frame_size=self.frame_size, resize=self.resize, recenter=recenter, nproc=10)
             else:
-                self.abcycles[i].get_framescube(frame_size=self.frame_size, resize=self.resize)
+                self.abcycles[i].get_framescube(frame_size=self.frame_size, resize=self.resize, recenter=recenter)
             self.framescube[i*(2*self.nfrpos):i*(2*self.nfrpos)+2*self.nfrpos,:,:] = self.abcycles[i].framescube
             tss = time.time() - tss
             logging.info("  subcube extracted for block starting at {0}, time {1}s".format(self.startframes[i],tss))
@@ -340,7 +357,7 @@ class ABCycle(object):
 
     #
     # Attempt at parallelization: 
-    def get_framescube_multiproc(self, frame_size=400, resize=None, recenter=False):
+    def get_framescube_multiproc(self, frame_size=400, resize=None, recenter=False, nproc=10):
         #
         dd = 100
         submed = True
@@ -350,11 +367,14 @@ class ABCycle(object):
             self.framescube = np.zeros((self.nfrpos*2, resize*frame_size, resize*frame_size))
         self.have_framescube = True
         #
-        pool = Pool(processes=self.nfrpos)
-        allpars=[]
+        pool = Pool(processes=nproc)
+        jobs=[]
         for i in range(self.nfrpos):
-            allpars.append(( i, frame_size, dd, submed, resize))
-        pool.map(self.__get_subimages, allpars)
+            job = apply_async(pool,self.__get_subimages, ( i, frame_size, dd, submed, resize))
+            jobs.append(job)
+        #pool.map(self.__get_subimages, allpars)
+        #map(pool,self.__get_subimages, allpars)
+        #[apply_async(pool,self.__get_subimages,allpars[i]) for i in range(self.nfrpos)]
         #results = [ \
         #     pool.apply_async(self.__get_subimages, ( i, frame_size, dd, submed, resize)) \
         #     for i in range(self.nfrpos)]
