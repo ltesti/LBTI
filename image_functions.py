@@ -33,3 +33,26 @@ def outmedian(data, radius):
     y,x = np.mgrid[0:cen[0]-1:cen[0]*1j,0:cen[1]-1:cen[1]*1j]
     wm = np.where((y-cen[0]/2.)*(y-cen[0]/2.)+(x-cen[1]/2.)*(x-cen[1]/2.) >= radius*radius)
     return np.nanmedian(data[wm])
+
+#
+# returns the sign of the sum of all array elements
+def getsign(data):
+    mytot = np.nansum(data)
+    dfac = +1
+    if mytot < 0.:
+        dfac = -1
+    return dfac
+
+#
+# Returns xc,yc position of the centroid of an array
+def get_centroid(d):
+    #
+    #d = data[y1:y2+1,x1:x2+1]
+    #y,x = np.mgrid[y1:y2:2*dd*1j,x1:x2:2*dd*1j]
+    ll = np.shape(d)
+    y,x = np.mgrid[0:ll[0]-1:ll[0]*1j,0:ll[1]-1:ll[1]*1j]
+    dtot = np.nansum(d*d)
+    #print("x={0}, y={1}, d={2}".format(np.shape(x),np.shape(y),np.shape(d)))
+    xc = np.nansum((x*d*d))/dtot
+    yc = np.nansum((y*d*d))/dtot
+    return xc, yc

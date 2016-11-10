@@ -303,9 +303,12 @@ class ABCycle(object):
             y1 = self.ylow+mydy-dd
             y2 = self.ylow+mydy+dd-1
             # 
-            dfac = self.__getsign(data[y1:y2+1,x1:x2+1])
+            dfac = imfu.getsign(data[y1:y2+1,x1:x2+1])
             #print("dy = {0} dfac = {1}".format(mydy,dfac))
-            xc, yc = self.__get_centroid(dfac*data, y1, y2, x1, x2, dd)
+            #xc, yc = self.__get_centroid(dfac*data, y1, y2, x1, x2, dd)
+            xc, yc = imfu.get_centroid(dfac*data[y1:y2,x1:x2])
+            xc = xc+x1
+            yc = yc+y1
             #print("   xc = {0} yc = {1}".format(xc,yc))
             if self.fill_nan:
                 data[self.nanmasks[2*plane]] = np.nan
