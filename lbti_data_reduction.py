@@ -257,10 +257,11 @@ class ABCycle(object):
         recenter = par[5]
         oldmode=False
         #
+        rsfac = resize
         if resize == None:
-            outsize = subimsiz
-        else:
-            outsize = resize * subimsiz
+            rsfac = 1
+        #
+        outsize = rsfac * subimsiz
         subims = np.zeros((2,outsize,outsize))
         # resample original image
         ab_res = imfu.resize_image(self.subcube[plane,:,:], resize)
@@ -271,8 +272,8 @@ class ABCycle(object):
         x1 = self.width/2.-dd
         x2 = self.width/2.+dd-1
         for i in range(2):
-            y1 = self.ylow+mydylist[i]-dd
-            y2 = self.ylow+mydylist[i]+dd-1
+            y1 = rsfac*(self.ylow+mydylist[i]-dd)
+            y2 = rsfac*(self.ylow+mydylist[i]+dd)-1
             # get sign
             dfac = imfu.getsign(ab_res[y1:y2+1,x1:x2+1])
             # get centroid
