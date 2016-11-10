@@ -274,7 +274,7 @@ class ABCycle(object):
             y1 = self.ylow+mydylist[i]-dd
             y2 = self.ylow+mydylist[i]+dd-1
             # get sign
-            dfac = imfu.getsign(data[y1:y2+1,x1:x2+1])
+            dfac = imfu.getsign(ab_res[y1:y2+1,x1:x2+1])
             # get centroid
             xc, yc = imfu.get_centroid(dfac*data[y1:y2,x1:x2])
             xc = xc+x1
