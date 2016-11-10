@@ -335,30 +335,13 @@ class ABCycle(object):
             # subtract median values from the edges of the map
             if submed:
                 radius = 2./3.*(float(subimsiz)/2.)
-                subims[i,:,:] = subims[i,:,:] - self.__outmedian(subims[i,:,:], radius)
+                subims[i,:,:] = subims[i,:,:] - outmedian(subims[i,:,:], radius)
             #
             # resample the images, recenter and interpolate.
             if resize == None:
                 self.framescube[plane*2+i] = subims[i,:,:]
             else:
-                if oldmode:
-                    # This procedure is described in
-                    # http://astrolitterbox.blogspot.de/2012/03/healing-holes-in-arrays-in-python.html
-                    myMask = (np.isnan(subims[i,:,:]))
-                    myMaskedImg = np.ma.array(subims[i,:,:], mask=myMask)
-                    NANMask =  myMaskedImg.filled(np.NaN)
-                    myBadArrays, my_num_BadArrays = snd.label(myMask)
-                    my_data_slices = snd.find_objects(myBadArrays)
-                    filled = inpaint.replace_nans(NANMask, 5, 0.5, 2, 'idw')
-                    zoom_filled = snd.zoom(filled, resize, order=3)
-                    # remove recentering option
-                    #if recenter:
-                    #    zoom_filled = self.__do_recenter(zoom_filled, resize * (xc - float(ixc)), resize * (yc - float(iyc)))
-                    zoom_mask = snd.zoom(myMask, resize, order=0)
-                    myZoomFilled = np.ma.array(zoom_filled, mask=zoom_mask)
-                    self.framescube[plane*2+i] = myZoomFilled.filled(np.NaN)
-                else:
-                     self.framescube[plane*2+i] = resize_image(subims[i,:,:], resize)
+                self.framescube[plane*2+i] = resize_image(subims[i,:,:], resize)
             #
         #
     

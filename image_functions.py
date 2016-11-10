@@ -4,6 +4,10 @@ import numpy as np
 import scipy.ndimage as snd
 import inpaint
 
+#
+# This function will return a resized image
+#   obtained by resampling by a factor "factor"
+#   the original "image"
 def resize_image(image, factor):
     myMask = (np.isnan(image))
     myMaskedImg = np.ma.array(image, mask=myMask)
@@ -20,3 +24,12 @@ def resize_image(image, factor):
     resized_image = myZoomFilled.filled(np.NaN)
     #
     return resized_image
+
+#
+# This function will return the median of the
+#     points in one image outside a radius "radius" (in pixels)
+def outmedian(data, radius):
+    cen = np.shape(data)
+    y,x = np.mgrid[0:cen[0]-1:cen[0]*1j,0:cen[1]-1:cen[1]*1j]
+    wm = np.where((y-cen[0]/2.)*(y-cen[0]/2.)+(x-cen[1]/2.)*(x-cen[1]/2.) >= radius*radius)
+    return np.nanmedian(data[wm])
