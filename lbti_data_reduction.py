@@ -26,7 +26,7 @@ import logging
 
 # local package functions
 import inpaint 
-from image_functions import resize_image
+from image_functions as imfu
 
     #log = logging.getLogger()
     #log.setLevel(LOG_LEVEL)
@@ -77,23 +77,6 @@ def apply_async(pool, fun, args):
 def map(pool, fun, args):
     payload = dill.dumps((fun, args))
     return pool.map(run_dill_encoded, (payload,))
-
-def resize_image(image, factor):
-    myMask = (np.isnan(image))
-    myMaskedImg = np.ma.array(image, mask=myMask)
-    NANMask =  myMaskedImg.filled(np.NaN)
-    myBadArrays, my_num_BadArrays = snd.label(myMask)
-    my_data_slices = snd.find_objects(myBadArrays)
-    filled = inpaint.replace_nans(NANMask, 5, 0.5, 2, 'idw')
-    zoom_filled = snd.zoom(filled, factor, order=3)
-                # remove recentering option
-                #if recenter:
-                #    zoom_filled = self.__do_recenter(zoom_filled, resize * (xc - float(ixc)), resize * (yc - float(iyc)))
-    zoom_mask = snd.zoom(myMask, factor, order=0)
-    myZoomFilled = np.ma.array(zoom_filled, mask=zoom_mask)
-    resized_image = myZoomFilled.filled(np.NaN)
-    #
-    return resized_image
 
 
 class StarDataset(object):
@@ -335,13 +318,13 @@ class ABCycle(object):
             # subtract median values from the edges of the map
             if submed:
                 radius = 2./3.*(float(subimsiz)/2.)
-                subims[i,:,:] = subims[i,:,:] - outmedian(subims[i,:,:], radius)
+                subims[i,:,:] = subims[i,:,:] - imfu.outmedian(subims[i,:,:], radius)
             #
             # resample the images, recenter and interpolate.
             if resize == None:
                 self.framescube[plane*2+i] = subims[i,:,:]
             else:
-                self.framescube[plane*2+i] = resize_image(subims[i,:,:], resize)
+                self.framescube[plane*2+i] = imfu.resize_image(subims[i,:,:], resize)
             #
         #
     
