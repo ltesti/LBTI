@@ -276,7 +276,7 @@ class ABCycle(object):
             # get sign
             dfac = imfu.getsign(ab_res[y1:y2+1,x1:x2+1])
             # get centroid
-            xc, yc = imfu.get_centroid(dfac*data[y1:y2,x1:x2])
+            xc, yc = imfu.get_centroid(dfac*ab_res[y1:y2,x1:x2])
             xc = xc+x1
             yc = yc+y1
             #
