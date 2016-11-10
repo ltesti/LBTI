@@ -26,7 +26,7 @@ import logging
 
 # local package functions
 import inpaint 
-from image_functions as imfu
+import image_functions as imfu
 
     #log = logging.getLogger()
     #log.setLevel(LOG_LEVEL)
