@@ -23,7 +23,7 @@ def resize_image(image, factor):
     myZoomFilled = np.ma.array(zoom_filled, mask=zoom_mask)
     resized_image = myZoomFilled.filled(np.NaN)
     #
-    return resized_image
+    return myZoomFilled
 
 #
 # This function will return the median of the

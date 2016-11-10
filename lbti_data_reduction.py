@@ -223,33 +223,7 @@ class ABCycle(object):
         y2 = self.height
         return y1, y2, x1, x2
     
-    #
-    # These set of methods __detsign(), __get_centroid(), __get_subimages()
-    #   are used by get_framescube() to center the positive and negative images
-    #   of the star in a A-B nod image and extract subframes centered on the star.
-    def __getsign(self,data):
-        mytot = np.nansum(data)
-        dfac = +1
-        if mytot < 0.:
-            dfac = -1
-        return dfac
-        
-    def __get_centroid(self, data, y1, y2, x1, x2, dd):
-        #
-        d = data[y1:y2+1,x1:x2+1]
-        y,x = np.mgrid[y1:y2:2*dd*1j,x1:x2:2*dd*1j]
-        dtot = np.nansum(d*d)
-        #print("x={0}, y={1}, d={2}".format(np.shape(x),np.shape(y),np.shape(d)))
-        xc = np.nansum((x*d*d))/dtot
-        yc = np.nansum((y*d*d))/dtot
-        return xc, yc
-
-    def __outmedian(self, data, radius):
-        cen = np.shape(data)
-        y,x = np.mgrid[0:cen[0]-1:cen[0]*1j,0:cen[1]-1:cen[1]*1j]
-        wm = np.where((y-cen[0]/2.)*(y-cen[0]/2.)+(x-cen[1]/2.)*(x-cen[1]/2.) >= radius*radius)
-        return np.nanmedian(data[wm])
-
+    # The results of this one are not satisfactory!
     #
     # This procedure recenter the image to a float dx, dx
     #   note that this shift is assumed to be small.
@@ -274,6 +248,47 @@ class ABCycle(object):
     
     #def __get_subimages(self, plane = 0, subimsiz = 400, dd = 100, submed = True, 
     #                    resize = None):
+    def __get_subcube(self, par):
+        plane = par[0]
+        subimsiz = par[1]
+        dd = par[2]
+        submed = par[3]
+        resize = par[4]
+        recenter = par[5]
+        oldmode=False
+        #
+        if resize == None:
+            outsize = subimsiz
+        else:
+            outsize = resize * subimsiz
+        subims = np.zeros((2,outsize,outsize))
+        # resample original image
+        ab_res = imfu.resize_image(self.subcube[plane,:,:], resize)
+        # subtract median
+        ab_res = ab_res - np.nanmedian(ab_res)
+        # cycle the two positions
+        mydylist = [0, self.dy]
+        x1 = self.width/2.-dd
+        x2 = self.width/2.+dd-1
+        for i in range(2):
+            y1 = self.ylow+mydylist[i]-dd
+            y2 = self.ylow+mydylist[i]+dd-1
+            # get sign
+            dfac = imfu.getsign(data[y1:y2+1,x1:x2+1])
+            # get centroid
+            xc, yc = imfu.get_centroid(dfac*data[y1:y2,x1:x2])
+            xc = xc+x1
+            yc = yc+y1
+            #
+            ixc = int(round(xc))
+            iyc = int(round(yc))
+            subims[i,:,:] = dfac*ab_res[iyc-outsize/2:iyc+outsize/2,ixc-outsize/2:ixc+outsize/2]
+            if submed:
+                radius = 2./3.*(float(outsize)/2.)
+                subims[i,:,:] = subims[i,:,:] - imfu.outmedian(subims[i,:,:], radius)
+            self.framescube[plane*2+i] = subims[i,:,:]
+
+
     def __get_subimages(self, par):
         plane = par[0]
         subimsiz = par[1]
@@ -304,12 +319,11 @@ class ABCycle(object):
             y2 = self.ylow+mydy+dd-1
             # 
             dfac = imfu.getsign(data[y1:y2+1,x1:x2+1])
-            #print("dy = {0} dfac = {1}".format(mydy,dfac))
-            #xc, yc = self.__get_centroid(dfac*data, y1, y2, x1, x2, dd)
+            #
             xc, yc = imfu.get_centroid(dfac*data[y1:y2,x1:x2])
             xc = xc+x1
             yc = yc+y1
-            #print("   xc = {0} yc = {1}".format(xc,yc))
+            #
             if self.fill_nan:
                 data[self.nanmasks[2*plane]] = np.nan
                 data[self.nanmasks[2*plane+1]] = np.nan
@@ -345,7 +359,8 @@ class ABCycle(object):
         #
         for i in range(self.nfrpos):
             par = ( i, frame_size, dd, submed, resize, recenter)
-            self.__get_subimages(par)
+            #self.__get_subimages(par)
+            self.__get_subcube(par)
 
     #
     # Attempt at parallelization: 
