@@ -173,9 +173,9 @@ class ABCycle(object):
 
         pars=[]
         for plane in range(self.nfrpos):
-            par = (self.subcube[2*plane],-self.parangs[plane,0],reshape=False)
+            par = (self.subcube[2*plane],-self.parangs[plane,0])#,reshape=False)
             pars.append(par)
-            par = (self.subcube[2*plane+1],-self.parangs[plane,1],reshape=False)
+            par = (self.subcube[2*plane+1],-self.parangs[plane,1])#,reshape=False)
             pars.append(par)
 
         for plane in range(self.nfrpos):
