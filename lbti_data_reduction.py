@@ -150,7 +150,7 @@ class StarDataset(object):
                     self.abcycles[i].do_rotate_subcube(multi=multi, nproc=25)
                     self.rotsubcube[i*(2*self.nfrpos):i*(2*self.nfrpos)+2*self.nfrpos,:,:] = self.abcycles[i].abrotsubcube
                     trr = time.time() - trr
-                    logging.info("  subcube rotated for block starting at {0}, time {1}s".format(self.startframes[i],tss))
+                    logging.info("  subcube rotated for block starting at {0}, time {1}s".format(self.startframes[i],trr))
             else:
                 print("Nothing done: please run do_subcube() method first!")
         else:
