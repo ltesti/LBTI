@@ -56,6 +56,10 @@ class StarDataset(object):
         self.abcycles = []
         self.resize = resize
         #
+        self.has_medianimage = False
+        self.has_framescube = False
+        self.has_subcube = False
+        #
         self.log_level = 20
         self.log_filename = 'local.log'
         self.log_filemode = 'w'
@@ -120,4 +124,35 @@ class StarDataset(object):
         tscu = time.time() - ts
         logging.info("--> Extraction of {0} subcubes complete, time {1}s".format(len(self.startframes),tscu))
         self.has_framescube=True
+
+    def do_subcube(self):
+        ts = time.time()
+        logging.info("Starting median subtraction")
+        if self.has_framescube:
+            self.medianimage = np.median(self.framescube,axis=0)
+            self.has_medianimage = True
+            for i in range(len(self.startframes)):
+                self.abcycles[i].do_subcube(self.medianimage)
+            self.has_subcube = True
+        else:
+            print("Nothing done: please run do_framescube() method first!")
+        tsub = time.time() - ts
+        logging.info("--> Subtraction of {0} subcubes complete, time {1}s".format(len(self.startframes),tsub))
+
+    def do_derotate_cube(self, subcube=True):
+        ts = time.time()
+        logging.info("Starting subcube rotation")
+        if subcube:
+            if self.has_subcube:
+                self.rotsubcube = np.zeros((len(self.startframes)*2*self.nfrpos,self.out_frame_size,self.out_frame_size))
+                for i in range(len(self.startframes)):
+                    self.abcycles[i].do_rotate_subcube()
+                    self.rotsubcube[i*(2*self.nfrpos):i*(2*self.nfrpos)+2*self.nfrpos,:,:] = self.abcycles[i].abrotsubcube
+            else:
+                print("Nothing done: please run do_subcube() method first!")
+        else:
+            print("Not yet implemented!")
+        trot = time.time() - ts
+        logging.info("--> Rotation of {0} subcubes complete, time {1}s".format(len(self.startframes),trot))
+
            

@@ -23,6 +23,7 @@ def resize_image(image, factor):
         zoom_mask = snd.zoom(myMask, factor, order=0)
         myZoomFilled = np.ma.array(zoom_filled, mask=zoom_mask)
         resized_image = myZoomFilled.filled(np.NaN)
+        resized_image = myZoomFilled
     #
     return resized_image
 

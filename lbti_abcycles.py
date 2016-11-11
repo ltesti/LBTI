@@ -58,7 +58,8 @@ class ABCycle(object):
         self.plscale = plscale
         self.filenames = self.__get_filenames()
         self.subcube, self.nanmasks, self.parangs = self.__fillcube()
-        self.have_framescube = False
+        self.has_framescube = False
+        self.has_subcube = False
         
     # This method creates an array with all the file names
     def __get_filenames(self):
@@ -121,7 +122,7 @@ class ABCycle(object):
         else:
             rsfac = resize
         self.framescube = np.zeros((self.nfrpos*2, rsfac*frame_size, rsfac*frame_size))
-        self.have_framescube = True
+        self.has_framescube = True
 
         # (x,y) location of stars in A and B
         x = [rsfac*(self.width/2.-dd),rsfac*(self.width/2.+dd)-1]
@@ -156,7 +157,22 @@ class ABCycle(object):
 
         pool.close()
         pool.join()      
-    
+
+    #
+    # subtract median image and create subcube
+    def do_subcube(self,medianimage):
+        self.subcube = self.framescube - medianimage
+        self.has_subcube = True
+
+    #
+    # rotate subcubes
+    def do_rotate_subcube(self):
+        xy = np.shape(self.framescube)
+        self.abrotsubcube = np.zeros((self.nfrpos*2, xy[0], xy[1]))
+        for plane in range(self.nfrpos):
+            self.abrotsubcube[2*plane,:,:] = snd.interpolation.rotate(self.subcube[2*plane],-self.parangs[plane,0],reshape=False)
+            self.abrotsubcube[2*plane+1,:,:] = snd.interpolation.rotate(self.subcube[2*plane+1],-self.parangs[plane,1],reshape=False)
+
     
 class myImage(object):
     
