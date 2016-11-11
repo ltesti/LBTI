@@ -139,14 +139,14 @@ class StarDataset(object):
 
         return log
             
-    def do_framescube(self, multi=False, recenter=False):
+    def do_framescube(self, multi=False, recenter=False, nproc=10):
         ts = time.time()
         logging.info("Starting the extraction of subcubes")
         self.framescube = np.zeros((len(self.startframes)*2*self.nfrpos,self.out_frame_size,self.out_frame_size))
         for i in range(len(self.startframes)):
             tss = time.time()
             if multi:
-                self.abcycles[i].get_framescube_multiproc(frame_size=self.frame_size, resize=self.resize, recenter=recenter, nproc=10)
+                self.abcycles[i].get_framescube_multiproc(frame_size=self.frame_size, resize=self.resize, recenter=recenter, nproc=nproc)
             else:
                 self.abcycles[i].get_framescube(frame_size=self.frame_size, resize=self.resize, recenter=recenter)
             self.framescube[i*(2*self.nfrpos):i*(2*self.nfrpos)+2*self.nfrpos,:,:] = self.abcycles[i].framescube
@@ -253,27 +253,36 @@ class ABCycle(object):
         subimsiz = par[1]
         dd = par[2]
         submed = par[3]
-        resize = par[4]
+        rsfac = par[4]
         recenter = par[5]
         oldmode=False
         #
-        rsfac = resize
-        if resize == None:
-            rsfac = 1
+        #if resize == None:
+        #    rsfac = 1
+        #else:
+        #    rsfac = resize
+        data = self.subcube[plane,:,:]
+        data[self.nanmasks[2*plane]] = np.nan
+        data[self.nanmasks[2*plane+1]] = np.nan
+        #mynanmasks = [rsfac*self.nanmasks[2*plane],rsfac*self.nanmasks[2*plane+1]]
+        mydylist = np.array([0, self.dy])
+        x1 = rsfac*(self.width/2.-dd)
+        x2 = rsfac*(self.width/2.+dd)-1
+        yv1 = rsfac*(self.ylow+mydylist-dd)
+        yv2 = rsfac*(self.ylow+mydylist+dd)-1
+        #
+        ab_res = imfu.resize_image(data, rsfac)
         #
         outsize = rsfac * subimsiz
         subims = np.zeros((2,outsize,outsize))
         # resample original image
-        ab_res = imfu.resize_image(self.subcube[plane,:,:], resize)
+        #ab_res = imfu.resize_image(self.subcube[plane,:,:], resize)
         # subtract median
         ab_res = ab_res - np.nanmedian(ab_res)
         # cycle the two positions
-        mydylist = [0, self.dy]
-        x1 = self.width/2.-dd
-        x2 = self.width/2.+dd-1
         for i in range(2):
-            y1 = rsfac*(self.ylow+mydylist[i]-dd)
-            y2 = rsfac*(self.ylow+mydylist[i]+dd)-1
+            y1 = yv1[i]
+            y2 = yv2[i]
             # get sign
             dfac = imfu.getsign(ab_res[y1:y2+1,x1:x2+1])
             # get centroid
@@ -283,12 +292,15 @@ class ABCycle(object):
             #
             ixc = int(round(xc))
             iyc = int(round(yc))
+            #ab_res[mynanmasks[0]] = np.nan
+            #ab_res[mynanmasks[1]] = np.nan
             subims[i,:,:] = dfac*ab_res[iyc-outsize/2:iyc+outsize/2,ixc-outsize/2:ixc+outsize/2]
             if submed:
                 radius = 2./3.*(float(outsize)/2.)
                 subims[i,:,:] = subims[i,:,:] - imfu.outmedian(subims[i,:,:], radius)
-            self.framescube[plane*2+i] = subims[i,:,:]
-
+        #
+        self.framescube[plane*2] = subims[0,:,:]
+        self.framescube[plane*2+1] = subims[1,:,:]
 
     def __get_subimages(self, par):
         plane = par[0]
@@ -353,13 +365,14 @@ class ABCycle(object):
         dd = 100
         submed = True
         if resize == None:
-            self.framescube = np.zeros((self.nfrpos*2, frame_size, frame_size))
+            rsfac = 1.
         else:
-            self.framescube = np.zeros((self.nfrpos*2, resize*frame_size, resize*frame_size))
+            rsfac = resize
+        self.framescube = np.zeros((self.nfrpos*2, rsfac*frame_size, rsfac*frame_size))
         self.have_framescube = True
         #
         for i in range(self.nfrpos):
-            par = ( i, frame_size, dd, submed, resize, recenter)
+            par = ( i, frame_size, dd, submed, rsfac, recenter)
             #self.__get_subimages(par)
             self.__get_subcube(par)
 
@@ -369,25 +382,53 @@ class ABCycle(object):
         #
         dd = 100
         submed = True
-        cube_frame_size = frame_size
-        if resize != None:
-            cube_frame_size = cube_frame_size * resize
-        
+        #cube_frame_size = frame_size
+        #if resize != None:
+        #    cube_frame_size = cube_frame_size * resize
+        if resize == None:
+            rsfac = 1.
+        else:
+            rsfac = resize
+        self.framescube = np.zeros((self.nfrpos*2, rsfac*frame_size, rsfac*frame_size))
         self.have_framescube = True
-        #
+
+        #mydylist = np.array([0, self.dy])
+        x = [rsfac*(self.width/2.-dd),rsfac*(self.width/2.+dd)-1]
+        y = [[rsfac*(self.ylow-dd),rsfac*(self.ylow+dd)-1],\
+            [rsfac*(self.ylow+self.dy-dd),rsfac*(self.ylow+self.dy+dd)-1]]
+        #yv2 = rsfac*(self.ylow+mydylist+dd)-1
+
         pool = Pool(processes=nproc)
-        jobs=[]
-        for i in range(self.nfrpos):
-            job = apply_async(pool,self.__get_subimages, ( i, frame_size, dd, submed, resize))
-            jobs.append(job)
-        #pool.map(self.__get_subimages, allpars)
-        #map(pool,self.__get_subimages, allpars)
-        #[apply_async(pool,self.__get_subimages,allpars[i]) for i in range(self.nfrpos)]
-        #results = [ \
-        #     pool.apply_async(self.__get_subimages, ( i, frame_size, dd, submed, resize)) \
-        #     for i in range(self.nfrpos)]
-        pool.close()
-        pool.join()
+        pars=[]
+
+        for plane in range(self.nfrpos):
+            par = (self.subcube[plane,:,:],(x,y),frame_size,rsfac,submed)
+            #self.framescube[2*plane:2*plane+2,:,:] = imfu.get_subimage(par)
+            pars.append(par)
+
+        results = pool.map(imfu.get_subimage, pars)
+
+        for plane in range(self.nfrpos):
+            self.framescube[2*plane:2*plane+2,:,:] = results[plane]        
+
+
+
+        #
+        #pool = Pool(processes=nproc)
+        #jobs=[]
+        #for i in range(self.nfrpos):
+        #   job = apply_async(pool,self.__get_subimages, ( i, frame_size, dd, submed, resize))
+        #    jobs.append(job)
+        
+        ##pool.map(self.__get_subimages, allpars)
+        ##map(pool,self.__get_subimages, allpars)
+        ##[apply_async(pool,self.__get_subimages,allpars[i]) for i in range(self.nfrpos)]
+        ##results = [ \
+        ##     pool.apply_async(self.__get_subimages, ( i, frame_size, dd, submed, resize)) \
+        ##     for i in range(self.nfrpos)]
+        
+        #pool.close()
+        #pool.join()
     
     
 class myImage(object):
