@@ -98,7 +98,7 @@ def get_subimage(par):
             subims[i,:,:] = subims[i,:,:] - outmedian(subims[i,:,:], radius)
     return subims
 
-    #
-    #  image rotation
-    def rotima(par):
+#
+#  image rotation
+def rotima(par):
         return snd.interpolation.rotate(par[0],par[1],reshape=False)

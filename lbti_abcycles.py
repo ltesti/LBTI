@@ -165,8 +165,29 @@ class ABCycle(object):
         self.has_subcube = True
 
     #
+    # No multiprocessing version
+    def __run_rotatecube(self, pars):
+        for plane in range(self.nfrpos):
+            self.abrotsubcube[2*plane,:,:] = imfu.rotima(pars[2*plane]) #snd.interpolation.rotate(self.subcube[2*plane],-self.parangs[plane,0],reshape=False)
+            self.abrotsubcube[2*plane+1,:,:] = imfu.rotima(pars[2*plane+1]) #snd.interpolation.rotate(self.subcube[2*plane+1],-self.parangs[plane,1],reshape=False)
+
+    #
+    # multiprocessing version
+    def __run_multiproc_rotateccube(self, pars, nproc):
+        pool = Pool(processes=nproc)
+
+        results = pool.map(imfu.rotima, pars)
+
+        for plane in range(self.nfrpos):
+            self.abrotsubcube[2*plane,:,:] = results[2*plane]  
+            self.abrotsubcube[2*plane+1,:,:] = results[2*plane+1]  
+
+        pool.close()
+        pool.join()      
+
+    #
     # rotate subcubes
-    def do_rotate_subcube(self):
+    def do_rotate_subcube(self, multi=False, nproc=10):
         xy = np.shape(self.framescube)
         self.abrotsubcube = np.zeros((xy[0], xy[1], xy[2]))
         #print("Shape of framescube {0}, {1}, {2}, {3}".format(xy,xy[0], xy[1], xy[2]))
@@ -178,9 +199,15 @@ class ABCycle(object):
             par = (self.subcube[2*plane+1],-self.parangs[plane,1])#,reshape=False)
             pars.append(par)
 
-        for plane in range(self.nfrpos):
-            self.abrotsubcube[2*plane,:,:] = imfu.rotima(pars[2*plane]) #snd.interpolation.rotate(self.subcube[2*plane],-self.parangs[plane,0],reshape=False)
-            self.abrotsubcube[2*plane+1,:,:] = imfu.rotima(pars[2*plane+1]) #snd.interpolation.rotate(self.subcube[2*plane+1],-self.parangs[plane,1],reshape=False)
+        if multi:
+            self.__run_multiproc_rotateccube(pars, nproc)
+        else:
+            self.__run_rotatecube(pars)
+
+
+        #for plane in range(self.nfrpos):
+        #    self.abrotsubcube[2*plane,:,:] = imfu.rotima(pars[2*plane]) #snd.interpolation.rotate(self.subcube[2*plane],-self.parangs[plane,0],reshape=False)
+        #    self.abrotsubcube[2*plane+1,:,:] = imfu.rotima(pars[2*plane+1]) #snd.interpolation.rotate(self.subcube[2*plane+1],-self.parangs[plane,1],reshape=False)
 
     
 class myImage(object):
