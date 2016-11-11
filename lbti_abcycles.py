@@ -168,7 +168,16 @@ class ABCycle(object):
     # rotate subcubes
     def do_rotate_subcube(self):
         xy = np.shape(self.framescube)
-        self.abrotsubcube = np.zeros((self.nfrpos*2, xy[0], xy[1]))
+        self.abrotsubcube = np.zeros((xy[0], xy[1], xy[2]))
+        #print("Shape of framescube {0}, {1}, {2}, {3}".format(xy,xy[0], xy[1], xy[2]))
+
+        pars=[]
+        for plane in range(self.nfrpos):
+            par = (self.subcube[2*plane],-self.parangs[plane,0],reshape=False)
+            pars.append(par)
+            par = (self.subcube[2*plane+1],-self.parangs[plane,1],reshape=False)
+            pars.append(par)
+
         for plane in range(self.nfrpos):
             self.abrotsubcube[2*plane,:,:] = snd.interpolation.rotate(self.subcube[2*plane],-self.parangs[plane,0],reshape=False)
             self.abrotsubcube[2*plane+1,:,:] = snd.interpolation.rotate(self.subcube[2*plane+1],-self.parangs[plane,1],reshape=False)
