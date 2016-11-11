@@ -139,15 +139,18 @@ class StarDataset(object):
         tsub = time.time() - ts
         logging.info("--> Subtraction of {0} subcubes complete, time {1}s".format(len(self.startframes),tsub))
 
-    def do_derotate_cube(self, subcube=True):
+    def do_derotate_cube(self, multi=False, nproc=10, subcube=True):
         ts = time.time()
         logging.info("Starting subcube rotation")
         if subcube:
             if self.has_subcube:
                 self.rotsubcube = np.zeros((len(self.startframes)*2*self.nfrpos,self.out_frame_size,self.out_frame_size))
                 for i in range(len(self.startframes)):
-                    self.abcycles[i].do_rotate_subcube()
+                    trr = time.time()
+                    self.abcycles[i].do_rotate_subcube(multi=multi, nproc=25)
                     self.rotsubcube[i*(2*self.nfrpos):i*(2*self.nfrpos)+2*self.nfrpos,:,:] = self.abcycles[i].abrotsubcube
+                    trr = time.time() - trr
+                    logging.info("  subcube rotated for block starting at {0}, time {1}s".format(self.startframes[i],tss))
             else:
                 print("Nothing done: please run do_subcube() method first!")
         else:
