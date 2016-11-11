@@ -179,8 +179,8 @@ class ABCycle(object):
             pars.append(par)
 
         for plane in range(self.nfrpos):
-            self.abrotsubcube[2*plane,:,:] = snd.interpolation.rotate(self.subcube[2*plane],-self.parangs[plane,0],reshape=False)
-            self.abrotsubcube[2*plane+1,:,:] = snd.interpolation.rotate(self.subcube[2*plane+1],-self.parangs[plane,1],reshape=False)
+            self.abrotsubcube[2*plane,:,:] = imfu.rotima(pars[2*plane]) #snd.interpolation.rotate(self.subcube[2*plane],-self.parangs[plane,0],reshape=False)
+            self.abrotsubcube[2*plane+1,:,:] = imfu.rotima(pars[2*plane+1]) #snd.interpolation.rotate(self.subcube[2*plane+1],-self.parangs[plane,1],reshape=False)
 
     
 class myImage(object):
