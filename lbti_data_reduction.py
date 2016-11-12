@@ -112,7 +112,9 @@ class StarDataset(object):
         self.framescube = np.zeros((len(self.startframes)*2*self.nfrpos,self.out_frame_size,self.out_frame_size))
         for i in range(len(self.startframes)):
             tss = time.time()
-            self.abcycles[i].get_framescube(frame_size=self.frame_size, resize=self.resize, recenter=recenter,
+            #self.abcycles[i].get_framescube(frame_size=self.frame_size, resize=self.resize, recenter=recenter,
+            #                                multi=multi, nproc=nproc)
+            self.abcycles[i].get_framescube_blkshift(frame_size=self.frame_size, resize=self.resize, recenter=recenter,
                                             multi=multi, nproc=nproc)
             # if multi:
             #     self.abcycles[i].get_framescube_multiproc(frame_size=self.frame_size, resize=self.resize, recenter=recenter, nproc=nproc)

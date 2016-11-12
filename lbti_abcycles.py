@@ -60,6 +60,10 @@ class ABCycle(object):
         self.subcube, self.nanmasks, self.parangs = self.__fillcube()
         self.has_framescube = False
         self.has_subcube = False
+
+    ############################################################################
+    #    Section that reads and fills the cube
+    ############################################################################
         
     # This method creates an array with all the file names
     def __get_filenames(self):
@@ -108,6 +112,10 @@ class ABCycle(object):
         y1 = 0
         y2 = self.height
         return y1, y2, x1, x2
+
+    ############################################################################
+    #    Section that extracts the A-B frames
+    ############################################################################
     
     #
     # Extract and resample nod images: 
@@ -138,7 +146,38 @@ class ABCycle(object):
             self.__run_multiproc_framescube(pars, nproc)
         else:
             self.__run_framescube(pars)
-    
+
+    #
+    # Extract and resample nod images: 
+    def get_framescube_blkshift(self, frame_size=400, resize=None, recenter=False, multi=False, nproc=10):
+        #
+        dd = 100
+        submed = True
+        #
+        # define the frame and resampling factor
+        if resize == None:
+            rsfac = 1.
+        else:
+            rsfac = resize
+        self.framescube = np.zeros((self.nfrpos*2, rsfac*frame_size, rsfac*frame_size))
+        self.has_framescube = True
+
+        # (x,y) location of stars in A and B
+        x = [(self.width/2.-dd),(self.width/2.+dd)-1]
+        y = [[(self.ylow-dd),(self.ylow+dd)-1],\
+            [(self.ylow+self.dy-dd),(self.ylow+self.dy+dd)-1]]
+        
+        pars_cen=[]
+        for plane in range(self.nfrpos):
+            #par = (self.subcube[plane,:,:],(x,y),frame_size,rsfac,submed)
+            par = (self.subcube[plane,:,:],(x,y),frame_size,rsfac,submed)
+            pars_cen.append(par)
+
+        if multi:
+            self.__run_multiproc_framescube_blkshift(pars_cen, nproc)
+        else:
+            self.__run_framescube_blkshift(pars_cen)
+
     #
     # No multiprocessing version
     def __run_framescube(self, pars):
@@ -159,17 +198,61 @@ class ABCycle(object):
         pool.join()      
 
     #
+    # No multiprocessing version
+    def __run_framescube_blkshift(self, pars):
+        shiftcen=[]
+        for plane in range(self.nfrpos):
+            shiftcen.append(imfu.block_sign_centroid(pars[plane]))
+
+        pars_ext = imfu.get_pars_ext(shiftcen,pars)
+        
+        # pars_ext=[]
+        # for plane in range(self.nfrpos):
+        #     sign = (shiftcen[0][0],shiftcen[1][0])
+        #     center = ((int(round(shiftcen[0][1])),int(round(shiftcen[0][2]))), (int(round(shiftcen[1][1])),int(round(shiftcen[1][2]))))
+        #     shift = ((-(shiftcen[0][1]-center[0][0]),-(shiftcen[0][0]-center[0][1])),\
+        #              (-(shiftcen[1][1]-center[1][0]),-(shiftcen[1][0]-center[1][1])))
+        #     par = (pars[plane][0],(shiftcen[i][0]),pars[plane][2],pars[plane][3],pars[plane][4])
+        #     pars_ext.append(par)
+
+        for plane in range(self.nfrpos):
+            self.framescube[2*plane:2*plane+2,:,:] = imfu.get_subimage_blkshift(pars_ext[plane])
+
+    #
+    # multiprocessing version
+    def __run_multiproc_framescube_blkshift(self, pars, nproc):
+        pool = Pool(processes=nproc)
+
+        shiftcen = pool.map(imfu.block_sign_centroid, pars)
+
+        pars_ext = imfu.get_pars_ext(shiftcen,pars)
+
+        results = pool.map(imfu.get_subimage_blkshift, pars_ext)
+
+        for plane in range(self.nfrpos):
+            self.framescube[2*plane:2*plane+2,:,:] = results[plane]  
+
+        pool.close()
+        pool.join()      
+
+    ############################################################################
+
+    #
     # subtract median image and create subcube
     def do_subcube(self,medianimage):
         self.subcube = self.framescube - medianimage
         self.has_subcube = True
 
+    ############################################################################
+    #    Section that rotates the subtracted cube
+    ############################################################################
+
     #
     # No multiprocessing version
     def __run_rotatecube(self, pars):
         for plane in range(self.nfrpos):
-            self.abrotsubcube[2*plane,:,:] = imfu.rotima(pars[2*plane]) #snd.interpolation.rotate(self.subcube[2*plane],-self.parangs[plane,0],reshape=False)
-            self.abrotsubcube[2*plane+1,:,:] = imfu.rotima(pars[2*plane+1]) #snd.interpolation.rotate(self.subcube[2*plane+1],-self.parangs[plane,1],reshape=False)
+            self.abrotsubcube[2*plane,:,:] = imfu.rotima(pars[2*plane]) 
+            self.abrotsubcube[2*plane+1,:,:] = imfu.rotima(pars[2*plane+1]) 
 
     #
     # multiprocessing version
@@ -190,7 +273,6 @@ class ABCycle(object):
     def do_rotate_subcube(self, multi=False, nproc=10):
         xy = np.shape(self.framescube)
         self.abrotsubcube = np.zeros((xy[0], xy[1], xy[2]))
-        #print("Shape of framescube {0}, {1}, {2}, {3}".format(xy,xy[0], xy[1], xy[2]))
 
         pars=[]
         for plane in range(self.nfrpos):
@@ -204,10 +286,7 @@ class ABCycle(object):
         else:
             self.__run_rotatecube(pars)
 
-
-        #for plane in range(self.nfrpos):
-        #    self.abrotsubcube[2*plane,:,:] = imfu.rotima(pars[2*plane]) #snd.interpolation.rotate(self.subcube[2*plane],-self.parangs[plane,0],reshape=False)
-        #    self.abrotsubcube[2*plane+1,:,:] = imfu.rotima(pars[2*plane+1]) #snd.interpolation.rotate(self.subcube[2*plane+1],-self.parangs[plane,1],reshape=False)
+    ############################################################################
 
     
 class myImage(object):

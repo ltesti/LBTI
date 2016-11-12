@@ -59,6 +59,79 @@ def get_centroid(d):
     yc = np.nansum((y*d*d))/dtot
     return xc, yc
 
+def block_sign_centroid(par):
+    
+    data = par[0]
+    x = par[1][0]
+    y = par[1][1]
+    #
+    x1 = x[0]
+    x2 = x[1]
+    #
+    #print ("par: median={0}, x={1}, y={2}".format(np.nanmedian(data),x, y))
+    data = data - np.nanmedian(data)
+    values=[]
+    for i in range(2):
+        y1 = y[i][0]
+        y2 = y[i][1]
+        # get sign
+        dfac = getsign(data[y1:y2+1,x1:x2+1])
+        # get centroid
+        xc, yc = get_centroid(dfac*data[y1:y2,x1:x2])
+        xc = xc+x1
+        yc = yc+y1
+        values.append([dfac,xc,yc])
+    #
+    #print ("values: {0}".format(values))
+    return values
+
+#
+# function that extracts the subimages 
+def get_subimage_blkshift(par):
+    data = par[0]
+    sign = par[1]
+    center = par[2]
+    shift = par[3]
+    subimsiz = par[4]
+    rsfac = par[5]
+    submed = par[6]
+    #
+    ab_res = resize_image(data, rsfac)
+    #
+    outsize = rsfac * subimsiz
+    subims = np.zeros((2,outsize,outsize))
+    ab_res = ab_res - np.nanmedian(ab_res)
+    for i in range(2):
+        ab_shift = snd.interpolation.shift(ab_res,(rsfac*shift[i][1],rsfac*shift[i][0]))
+        subims[i,:,:] = sign[i]*ab_res[center[i][1]-outsize/2:center[i][1]+outsize/2,center[i][0]-outsize/2:center[i][0]+outsize/2]
+        if submed:
+            radius = 2./3.*(float(outsize)/2.)
+            subims[i,:,:] = subims[i,:,:] - outmedian(subims[i,:,:], radius)
+    return subims
+
+#
+# Ancillary function to reformat the parameter set and to compute the
+# median vales for the center and the shift of the block
+def get_pars_ext(shiftcen,pars):
+    mya = np.zeros(np.shape(shiftcen))
+    for i in range(np.shape(shiftcen)[0]):
+        mya[i,0,1] = pars[0][3]*shiftcen[i][0][1]
+        mya[i,0,2] = pars[0][3]*shiftcen[i][0][2]
+        mya[i,1,1] = pars[0][3]*shiftcen[i][1][1]
+        mya[i,1,2] = pars[0][3]*shiftcen[i][1][2]
+    med = ( [np.median(mya[:,0,1]),np.median(mya[:,0,2])], \
+            [np.median(mya[:,1,1]),np.median(mya[:,1,2])] )
+    center = ( [int(round(med[0][0])),int(round(med[0][1]))], \
+               [int(round(med[1][0])),int(round(med[1][1]))] )
+    shift = ( [-(med[0][0]-center[0][0]), -(med[0][1]-center[0][1])], \
+              [-(med[1][0]-center[1][0]), -(med[1][1]-center[1][1])] )
+    pars_ext=[]
+    for i in range(len(pars)):
+        sign = (shiftcen[i][0][0],shiftcen[i][1][0])
+        par = (pars[i][0],sign,center,shift,pars[i][2],pars[i][3],pars[i][4])
+        pars_ext.append(par)
+    return pars_ext
+
 #
 # function that extracts the subimages 
 def get_subimage(par):
@@ -102,3 +175,14 @@ def get_subimage(par):
 #  image rotation
 def rotima(par):
         return snd.interpolation.rotate(par[0],par[1],reshape=False)
+
+def anular_stats(ima,r1,r2):
+    xy = np.shape(ima)
+    yc = float(xy[0])/2.
+    xc = float(xy[1])/2.
+    y,x = np.mgrid[0:xy[0]-1:xy[0]*1j,0:xy[1]-1:xy[1]*1j]
+    radius = np.sqrt( (x-xc)**2. + (y-yc)**2. )
+    n_in = np.where((radius >=r1) & (radius <= r2))
+    mymean = np.mean(ima[n_in])
+    mystd = np.std(ima[n_in])
+    return mymean,mystd
