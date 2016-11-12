@@ -121,7 +121,7 @@ class ABCycle(object):
     # Extract and resample nod images: 
     def get_framescube(self, frame_size=400, resize=None, recenter=False, multi=False, nproc=10):
         #
-        dd = 100
+        dd = 150
         submed = True
         #
         # define the frame and resampling factor
