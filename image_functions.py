@@ -88,6 +88,7 @@ def block_sign_centroid(par):
 #
 # function that extracts the subimages 
 def get_subimage_blkshift(par):
+    do_shift=True
     data = par[0]
     sign = par[1]
     center = par[2]
@@ -102,8 +103,11 @@ def get_subimage_blkshift(par):
     subims = np.zeros((2,outsize,outsize))
     ab_res = ab_res - np.nanmedian(ab_res)
     for i in range(2):
-        ab_shift = snd.interpolation.shift(ab_res,(rsfac*shift[i][1],rsfac*shift[i][0]))
-        subims[i,:,:] = sign[i]*ab_res[center[i][1]-outsize/2:center[i][1]+outsize/2,center[i][0]-outsize/2:center[i][0]+outsize/2]
+        if do_shift:
+            ab_shift = snd.interpolation.shift(ab_res,(rsfac*shift[i][1],rsfac*shift[i][0]))
+            subims[i,:,:] = sign[i]*ab_shift[center[i][1]-outsize/2:center[i][1]+outsize/2,center[i][0]-outsize/2:center[i][0]+outsize/2]
+        else:
+            subims[i,:,:] = sign[i]*ab_res[center[i][1]-outsize/2:center[i][1]+outsize/2,center[i][0]-outsize/2:center[i][0]+outsize/2]
         if submed:
             radius = 2./3.*(float(outsize)/2.)
             subims[i,:,:] = subims[i,:,:] - outmedian(subims[i,:,:], radius)

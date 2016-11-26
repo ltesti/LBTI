@@ -256,7 +256,7 @@ class ABCycle(object):
 
     #
     # multiprocessing version
-    def __run_multiproc_rotateccube(self, pars, nproc):
+    def __run_multiproc_rotatecube(self, pars, nproc):
         pool = Pool(processes=nproc)
 
         results = pool.map(imfu.rotima, pars)
@@ -282,7 +282,7 @@ class ABCycle(object):
             pars.append(par)
 
         if multi:
-            self.__run_multiproc_rotateccube(pars, nproc)
+            self.__run_multiproc_rotatecube(pars, nproc)
         else:
             self.__run_rotatecube(pars)
 
