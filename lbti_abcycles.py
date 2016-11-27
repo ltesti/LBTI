@@ -167,6 +167,27 @@ class ABCycle(object):
             self.__run_framescube(pars)
 
     #
+    # No multiprocessing version
+    def __run_framescube(self, pars):
+        for plane in range(self.nfrpos):
+            #self.framescube[2*plane:2*plane+2,:,:] = imfu.get_subimage(pars[plane])
+            self.framescube[plane,:,:], self.framescube[self.nfrpos+plane,:,:] = imfu.get_subimage(pars[plane])
+
+    #
+    # multiprocessing version
+    def __run_multiproc_framescube(self, pars, nproc):
+        pool = Pool(processes=nproc)
+
+        results = pool.map(imfu.get_subimage, pars)
+
+        for plane in range(self.nfrpos):
+            #self.framescube[2*plane:2*plane+2,:,:] = results[plane] 
+            self.framescube[plane,:,:], self.framescube[self.nfrpos+plane,:,:] = imfu.get_subimage(pars[plane]) 
+
+        pool.close()
+        pool.join()      
+
+    #
     # Extract and resample nod images: 
     def get_framescube_blkshift(self, frame_size=400, resize=None, recenter=False, multi=False, nproc=10):
         #
@@ -198,27 +219,6 @@ class ABCycle(object):
             self.__run_multiproc_framescube_blkshift(pars_cen, nproc)
         else:
             self.__run_framescube_blkshift(pars_cen)
-
-    #
-    # No multiprocessing version
-    def __run_framescube(self, pars):
-        for plane in range(self.nfrpos):
-            #self.framescube[2*plane:2*plane+2,:,:] = imfu.get_subimage(pars[plane])
-            self.framescube[plane,:,:], self.framescube[self.nfrpos+plane,:,:] = imfu.get_subimage(pars[plane])
-
-    #
-    # multiprocessing version
-    def __run_multiproc_framescube(self, pars, nproc):
-        pool = Pool(processes=nproc)
-
-        results = pool.map(imfu.get_subimage, pars)
-
-        for plane in range(self.nfrpos):
-            #self.framescube[2*plane:2*plane+2,:,:] = results[plane] 
-            self.framescube[plane,:,:], self.framescube[self.nfrpos+plane,:,:] = imfu.get_subimage(pars[plane]) 
-
-        pool.close()
-        pool.join()      
 
     #
     # No multiprocessing version

@@ -133,7 +133,7 @@ def get_pars_ext(shiftcen,pars):
     pars_ext=[]
     for i in range(len(pars)):
         sign = (shiftcen[i][0][0],shiftcen[i][1][0])
-        par = (pars[i][0],sign,center,shift,pars[i][2],pars[i][3],pars[i][4])
+        par = (pars[i][0],sign,center,shift,pars[i][2],pars[i][3],pars[i][4],pars[i][5])
         pars_ext.append(par)
     return pars_ext
 
