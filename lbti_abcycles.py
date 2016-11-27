@@ -203,7 +203,8 @@ class ABCycle(object):
     # No multiprocessing version
     def __run_framescube(self, pars):
         for plane in range(self.nfrpos):
-            self.framescube[2*plane:2*plane+2,:,:] = imfu.get_subimage(pars[plane])
+            #self.framescube[2*plane:2*plane+2,:,:] = imfu.get_subimage(pars[plane])
+            self.framescube[plane,:,:], self.framescube[self.nfrpos+plane,:,:] = imfu.get_subimage(pars[plane])
 
     #
     # multiprocessing version
@@ -213,7 +214,8 @@ class ABCycle(object):
         results = pool.map(imfu.get_subimage, pars)
 
         for plane in range(self.nfrpos):
-            self.framescube[2*plane:2*plane+2,:,:] = results[plane]  
+            #self.framescube[2*plane:2*plane+2,:,:] = results[plane] 
+            self.framescube[plane,:,:], self.framescube[self.nfrpos+plane,:,:] = imfu.get_subimage(pars[plane]) 
 
         pool.close()
         pool.join()      
@@ -237,7 +239,8 @@ class ABCycle(object):
         #     pars_ext.append(par)
 
         for plane in range(self.nfrpos):
-            self.framescube[2*plane:2*plane+2,:,:] = imfu.get_subimage_blkshift(pars_ext[plane])
+            #self.framescube[2*plane:2*plane+2,:,:] = imfu.get_subimage_blkshift(pars_ext[plane])
+            self.framescube[plane,:,:], self.framescube[self.nfrpos+plane,:,:] = imfu.get_subimage_blkshift(pars_ext[plane])
 
     #
     # multiprocessing version
@@ -251,7 +254,8 @@ class ABCycle(object):
         results = pool.map(imfu.get_subimage_blkshift, pars_ext)
 
         for plane in range(self.nfrpos):
-            self.framescube[2*plane:2*plane+2,:,:] = results[plane]  
+            #self.framescube[2*plane:2*plane+2,:,:] = results[plane] 
+            self.framescube[plane,:,:], self.framescube[self.nfrpos+plane,:,:] = imfu.get_subimage_blkshift(pars_ext[plane]) 
 
         pool.close()
         pool.join()      
@@ -272,8 +276,8 @@ class ABCycle(object):
     # No multiprocessing version
     def __run_rotatecube(self, pars):
         for plane in range(self.nfrpos):
-            self.abrotsubcube[2*plane,:,:] = imfu.rotima(pars[2*plane]) 
-            self.abrotsubcube[2*plane+1,:,:] = imfu.rotima(pars[2*plane+1]) 
+            self.abrotsubcube[plane,:,:] = imfu.rotima(pars[2*plane]) 
+            self.abrotsubcube[self.nfrpos+plane,:,:] = imfu.rotima(pars[2*plane+1]) 
 
     #
     # multiprocessing version
@@ -283,8 +287,8 @@ class ABCycle(object):
         results = pool.map(imfu.rotima, pars)
 
         for plane in range(self.nfrpos):
-            self.abrotsubcube[2*plane,:,:] = results[2*plane]  
-            self.abrotsubcube[2*plane+1,:,:] = results[2*plane+1]  
+            self.abrotsubcube[plane,:,:] = results[2*plane]  
+            self.abrotsubcube[self.nfrpos+plane,:,:] = results[2*plane+1]  
 
         pool.close()
         pool.join()      
@@ -297,9 +301,9 @@ class ABCycle(object):
 
         pars=[]
         for plane in range(self.nfrpos):
-            par = (self.subcube[2*plane],-self.parangs[plane,0])#,reshape=False)
+            par = (self.subcube[plane],-self.parangs[plane,0])#,reshape=False)
             pars.append(par)
-            par = (self.subcube[2*plane+1],-self.parangs[plane,1])#,reshape=False)
+            par = (self.subcube[self.nfrpos+plane],-self.parangs[plane,1])#,reshape=False)
             pars.append(par)
 
         if multi:

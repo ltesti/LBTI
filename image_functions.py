@@ -112,7 +112,7 @@ def get_subimage_blkshift(par):
         if submed:
             radius = 2./3.*(float(outsize)/2.)
             subims[i,:,:] = subims[i,:,:] - outmedian(subims[i,:,:], radius)
-    return subims
+    return subims[0,:,:], subims[1,:,:]
 
 #
 # Ancillary function to reformat the parameter set and to compute the
@@ -174,7 +174,7 @@ def get_subimage(par):
         if submed:
             radius = 2./3.*(float(outsize)/2.)
             subims[i,:,:] = subims[i,:,:] - outmedian(subims[i,:,:], radius)
-    return subims
+    return subims[0,:,:], subims[1,:,:]
 
 #
 #  image rotation

@@ -127,7 +127,7 @@ class StarDataset(object):
             tss = time.time() - tss
             logging.info("  subcube extracted for block starting at {0}, time {1}s".format(self.startframes[i],tss))
         tscu = time.time() - ts
-        logging.info("--> Extraction of {0} subcubes complete, time {1}s".format(len(self.startframes),tscu))
+        logging.info("--> Extraction of {0} subcubes complete,d time {1}s".format(len(self.startframes),tscu))
         self.has_framescube=True
 
     def do_subcube(self):
@@ -142,7 +142,7 @@ class StarDataset(object):
         else:
             print("Nothing done: please run do_framescube() method first!")
         tsub = time.time() - ts
-        logging.info("--> Subtraction of {0} subcubes complete, time {1}s".format(len(self.startframes),tsub))
+        logging.info("--> Subtraction of {0} subcubes completed, time {1}s".format(len(self.startframes),tsub))
 
     def do_derotate_cube(self, multi=False, nproc=10, subcube=True):
         ts = time.time()
@@ -164,8 +164,15 @@ class StarDataset(object):
         logging.info("--> Rotation of {0} subcubes complete, time {1}s".format(len(self.startframes),trot))
 
     def do_write_allsubframes(self,framesdir='./'):
+        ts = time.time()
+        logging.info("Starting write subframes")
         nstart = 0
         for i in range(len(self.startframes)):
+            twr = time.time()
             nstart = nstart + self.abcycles[i].writeframes(nstart,framesdir,self.outname)
+            twr = time.time() - twr
+            logging.info("  frames written for block starting at {0}, time {1}s".format(self.startframes[i],twr))
+        tsub = time.time() - ts
+        logging.info("--> Writing subframes of {0} subcubes completed, time {1}s".format(len(self.startframes),tsub))
 
            
