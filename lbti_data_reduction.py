@@ -163,4 +163,9 @@ class StarDataset(object):
         trot = time.time() - ts
         logging.info("--> Rotation of {0} subcubes complete, time {1}s".format(len(self.startframes),trot))
 
+    def do_write_allsubframes(self,framesdir='./'):
+        nstart = 0
+        for i in range(len(self.startframes)):
+            nstart = nstart + self.abcycles[i].writeframes(nstart,framesdir,self.outname)
+
            

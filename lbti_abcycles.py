@@ -114,6 +114,23 @@ class ABCycle(object):
         return y1, y2, x1, x2
 
     ############################################################################
+    #    Write output frames
+    ############################################################################
+    
+    #
+    # write out the individual subcubes:
+    def writeframes(self,nstart,framesdir,outname):
+        filename = framesdir+'/'+outname
+        for i in range(2*self.nfrpos):
+             hdu = aiof.PrimaryHDU(self.subcube[i,:,:])
+             hdu[0].header['NEW_PARA]']=self.parangs[i]
+             hdu[0].header['CDELT2]']=self.new_plscale
+             hdu[0].header['CDELT1]']=-self.new_plscale
+             hdu.writeto(filename+'_'+str(nstart+i)+'.fits')
+        return 2*self.nfrpos
+
+
+    ############################################################################
     #    Section that extracts the A-B frames
     ############################################################################
     
@@ -127,8 +144,10 @@ class ABCycle(object):
         # define the frame and resampling factor
         if resize == None:
             rsfac = 1.
+            self.new_plscale = self.plscale / 1000. / 3600.
         else:
             rsfac = resize
+            self.new_plscale = self.plscale * resize / 1000. / 3600.
         self.framescube = np.zeros((self.nfrpos*2, rsfac*frame_size, rsfac*frame_size))
         self.has_framescube = True
 
@@ -157,8 +176,10 @@ class ABCycle(object):
         # define the frame and resampling factor
         if resize == None:
             rsfac = 1.
+            self.new_plscale = self.plscale
         else:
             rsfac = resize
+            self.new_plscale = self.plscale * resize
         self.framescube = np.zeros((self.nfrpos*2, rsfac*frame_size, rsfac*frame_size))
         self.has_framescube = True
 
@@ -170,7 +191,7 @@ class ABCycle(object):
         pars_cen=[]
         for plane in range(self.nfrpos):
             #par = (self.subcube[plane,:,:],(x,y),frame_size,rsfac,submed)
-            par = (self.subcube[plane,:,:],(x,y),frame_size,rsfac,submed)
+            par = (self.subcube[plane,:,:],(x,y),frame_size,rsfac,submed,recenter)
             pars_cen.append(par)
 
         if multi:

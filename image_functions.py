@@ -88,7 +88,6 @@ def block_sign_centroid(par):
 #
 # function that extracts the subimages 
 def get_subimage_blkshift(par):
-    do_shift=True
     data = par[0]
     sign = par[1]
     center = par[2]
@@ -96,6 +95,8 @@ def get_subimage_blkshift(par):
     subimsiz = par[4]
     rsfac = par[5]
     submed = par[6]
+    do_shift = par[7]
+
     #
     ab_res = resize_image(data, rsfac)
     #
