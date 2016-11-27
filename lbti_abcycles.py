@@ -122,11 +122,13 @@ class ABCycle(object):
     def writeframes(self,nstart,framesdir,outname):
         filename = framesdir+'/'+outname
         for i in range(2*self.nfrpos):
-             hdu = aiof.PrimaryHDU(self.subcube[i,:,:])
-             hdu[0].header['NEW_PARA]']=self.parangs[i]
-             hdu[0].header['CDELT2]']=self.new_plscale
-             hdu[0].header['CDELT1]']=-self.new_plscale
-             hdu.writeto(filename+'_'+str(nstart+i)+'.fits')
+             hl = aiof.HDUList()
+             hd = aiof.PrimaryHDU(self.subcube[i,:,:])
+             hl.append(hd)
+             hl[0].header['NEW_PARA']=self.parangs[i]
+             hl[0].header['CDELT2']=self.new_plscale
+             hl[0].header['CDELT1']=-self.new_plscale
+             hl.writeto(filename+'_'+str(nstart+i)+'.fits')
         return 2*self.nfrpos
 
 
