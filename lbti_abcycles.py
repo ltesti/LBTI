@@ -121,14 +121,21 @@ class ABCycle(object):
     # write out the individual subcubes:
     def writeframes(self,nstart,framesdir,outname):
         filename = framesdir+'/'+outname
-        for i in range(2*self.nfrpos):
-             hl = aiof.HDUList()
-             hd = aiof.PrimaryHDU(self.subcube[i,:,:])
-             hl.append(hd)
-             hl[0].header['NEW_PARA']=self.parangs[i]
-             hl[0].header['CDELT2']=self.new_plscale
-             hl[0].header['CDELT1']=-self.new_plscale
-             hl.writeto(filename+'_'+str(nstart+i)+'.fits')
+        for i in range(self.nfrpos):
+             hl1 = aiof.HDUList()
+             hl2 = aiof.HDUList()
+             hd1 = aiof.PrimaryHDU(self.subcube[i,:,:])
+             hd2 = aiof.PrimaryHDU(self.subcube[self.nfrpos+i,:,:])
+             hl1.append(hd1)
+             hl2.append(hd2)
+             hl1[0].header['NEW_PARA']=self.parangs[i][0]
+             hl1[0].header['CDELT2']=self.new_plscale
+             hl1[0].header['CDELT1']=-self.new_plscale
+             hl1.writeto(filename+'_'+str(nstart+i)+'.fits')
+             hl2[0].header['NEW_PARA']=self.parangs[i][1]
+             hl2[0].header['CDELT2']=self.new_plscale
+             hl2[0].header['CDELT1']=-self.new_plscale
+             hl2.writeto(filename+'_'+str(nstart+self.nfrpos+i)+'.fits')
         return 2*self.nfrpos
 
 
