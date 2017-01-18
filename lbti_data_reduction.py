@@ -77,7 +77,7 @@ class StarDataset(object):
         for startframe in self.startframes:
             tss = time.time()
             self.abcycles.append(ABCycle(self.datadir, self.fname, startframe, \
-                                         fill_nan = self.fill_nan, nfrpos=self.nfrpos, \
+                                         fill_nan = self.fill_nan, nfrpos=self.nfrpos, width = xcen*2., \
                                          xcen = xcen, ylow = ylow, dy = dy, plscale = plscale))
             tss = time.time() - tss
             logging.info("  Initialized block starting at {0}, time {1}s".format(startframe,tss))
