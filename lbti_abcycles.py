@@ -79,7 +79,7 @@ class ABCycle(object):
     # then returns a cube that contains the full set of a-b
     # sub-images of width self.width, height self.height and center self.xcen
     def __fillcube(self, simplesub = True):
-        mycube = np.zeros((self.nfrpos, self.height, self.width))
+        mycube = np.zeros((self.nfrpos, int(self.height), int(self.width)))
         mynanmasks = []
         myparangs = np.zeros((self.nfrpos,2))
         for i in range(self.nfrpos):
