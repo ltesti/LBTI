@@ -44,7 +44,7 @@ import image_functions as imfu
 class ABCycle(object):
     
     def __init__(self, datadir, fname, startframe, fill_nan = False, nfrpos = 200, width = 600, 
-                 height = 1024, xcen = 615, ylow = 340, dy = 425, plscale = 10.707):
+                 height = 1024, xcen = 615, ylow = 340, dy = 425, dx = 0, plscale = 10.707):
         self.datadir = datadir
         self.fill_nan = fill_nan
         self.fname = fname
@@ -55,6 +55,7 @@ class ABCycle(object):
         self.xcen = xcen
         self.ylow = ylow
         self.dy = dy
+        self.dx = dx
         self.plscale = plscale
         self.filenames = self.__get_filenames()
         self.subcube, self.nanmasks, self.parangs = self.__fillcube()
@@ -162,6 +163,8 @@ class ABCycle(object):
 
         # (x,y) location of stars in A and B
         x = [rsfac*(self.width/2.-dd),rsfac*(self.width/2.+dd)-1]
+        x = [[rsfac*(self.width/2.-dd),rsfac*(self.width/2.+dd)-1],
+             [rsfac*(self.width/2.+self.dx-dd),rsfac*(self.width/2.+self.dx+dd)-1]]
         y = [[rsfac*(self.ylow-dd),rsfac*(self.ylow+dd)-1],\
             [rsfac*(self.ylow+self.dy-dd),rsfac*(self.ylow+self.dy+dd)-1]]
         
@@ -273,8 +276,11 @@ class ABCycle(object):
 
     #
     # subtract median image and create subcube
-    def do_subcube(self,medianimage):
-        self.subcube = self.framescube - medianimage
+    def do_subcube(self, medianimage, do_sub_med=True):
+        if do_sub_med:
+            self.subcube = self.framescube - medianimage
+        else:
+            self.subcube = self.framescube
         self.has_subcube = True
 
     ############################################################################

@@ -130,14 +130,14 @@ class StarDataset(object):
         logging.info("--> Extraction of {0} subcubes complete,d time {1}s".format(len(self.startframes),tscu))
         self.has_framescube=True
 
-    def do_subcube(self):
+    def do_subcube(self, do_sub_med=True):
         ts = time.time()
         logging.info("Starting median subtraction")
         if self.has_framescube:
             self.medianimage = np.median(self.framescube,axis=0)
             self.has_medianimage = True
             for i in range(len(self.startframes)):
-                self.abcycles[i].do_subcube(self.medianimage)
+                self.abcycles[i].do_subcube(self.medianimage, do_sub_med=do_sub_med)
             self.has_subcube = True
         else:
             print("Nothing done: please run do_framescube() method first!")
