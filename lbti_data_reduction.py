@@ -46,7 +46,7 @@ class StarDataset(object):
 
     def __init__(self, datadir, fname, startframes, outname, nfrpos=200, 
                  frame_size=400, fill_nan=True, resize=None,
-                 xcen = 615, ylow = 340, dy = 425, plscale = 10.707):
+                 xcen = 615, ylow = 340, dy = 425, plscale = 10.707, width = 2048):
         self.datadir = datadir
         self.fname = fname
         self.startframes = startframes
@@ -56,6 +56,7 @@ class StarDataset(object):
         self.fill_nan = fill_nan
         self.abcycles = []
         self.resize = resize
+        self.width = width
         #
         self.has_medianimage = False
         self.has_framescube = False
@@ -76,8 +77,9 @@ class StarDataset(object):
         logging.info("Starting to set up the AB cycles")
         for startframe in self.startframes:
             tss = time.time()
+            mydx = min(xcen*2., (width-xcen)*2.)
             self.abcycles.append(ABCycle(self.datadir, self.fname, startframe, \
-                                         fill_nan = self.fill_nan, nfrpos=self.nfrpos, width = xcen*2., \
+                                         fill_nan = self.fill_nan, nfrpos=self.nfrpos, width = mydx, \
                                          xcen = xcen, ylow = ylow, dy = dy, plscale = plscale))
             tss = time.time() - tss
             logging.info("  Initialized block starting at {0}, time {1}s".format(startframe,tss))
