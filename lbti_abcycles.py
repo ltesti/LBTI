@@ -87,11 +87,11 @@ class ABCycle(object):
             if simplesub:
                 f2 = self.filenames[i+self.nfrpos]
             else:
-                f2 = self.filenames[2*self.nfrpos-(i+1)]
+                f2 = self.filenames[2*self.nfrpos-(i+1)] 
             y1, y2, x1, x2 = self.__imgsec()
-            i1 = myImage(f1, y1, y2, x1, x2, fill_nan = self.fill_nan)
-            i2 = myImage(f2, y1, y2, x1, x2, fill_nan = self.fill_nan)
-            mycube[i,:,:] = i1.data - i2.data
+            i1 = myImage(f1, y1, y2, x1, x2, fill_nan = self.fill_nan) 
+            i2 = myImage(f2, y1, y2, x1, x2, fill_nan = self.fill_nan) 
+            mycube[i,:,:] = i2.data - i1.data #i1.data - i2.data
             mynanmasks.append(i1.nan_idx())
             mynanmasks.append(i2.nan_idx())
             myparangs[i,0] = i1.parang
@@ -107,9 +107,11 @@ class ABCycle(object):
     
     def __imgsec(self):
         #
-        dx = int(self.width/2.)
-        x1 = self.xcen-dx
-        x2 = self.xcen+dx
+        #dx = int(self.width/2.)
+        #x1 = self.xcen-dx
+        #x2 = self.xcen+dx
+        x1 = 0
+        x2 = self.width
         y1 = 0
         y2 = self.height
         return y1, y2, x1, x2
@@ -148,7 +150,7 @@ class ABCycle(object):
     # Extract and resample nod images: 
     def get_framescube(self, frame_size=400, resize=None, recenter=False, multi=False, nproc=10):
         #
-        dd = 150
+        dd = 120
         submed = True
         #
         # define the frame and resampling factor
@@ -165,6 +167,8 @@ class ABCycle(object):
         x = [rsfac*(self.width/2.-dd),rsfac*(self.width/2.+dd)-1]
         x = [[rsfac*(self.width/2.-dd),rsfac*(self.width/2.+dd)-1],
              [rsfac*(self.width/2.+self.dx-dd),rsfac*(self.width/2.+self.dx+dd)-1]]
+        x = [[rsfac*(self.xcen-dd),rsfac*(self.xcen+dd)-1],\
+            [rsfac*(self.xcen+self.dx-dd),rsfac*(self.xcen+self.dx+dd)-1]]
         y = [[rsfac*(self.ylow-dd),rsfac*(self.ylow+dd)-1],\
             [rsfac*(self.ylow+self.dy-dd),rsfac*(self.ylow+self.dy+dd)-1]]
         
@@ -203,7 +207,7 @@ class ABCycle(object):
     # Extract and resample nod images: 
     def get_framescube_blkshift(self, frame_size=400, resize=None, recenter=False, multi=False, nproc=10):
         #
-        dd = 100
+        dd = 50
         submed = True
         #
         # define the frame and resampling factor
@@ -218,6 +222,8 @@ class ABCycle(object):
 
         # (x,y) location of stars in A and B
         x = [(self.width/2.-dd),(self.width/2.+dd)-1]
+        x = [[(self.xcen-dd),(self.xcen+dd)-1],\
+            [(self.xcen+self.dx-dd),(self.xcen+self.dx+dd)-1]]
         y = [[(self.ylow-dd),(self.ylow+dd)-1],\
             [(self.ylow+self.dy-dd),(self.ylow+self.dy+dd)-1]]
         

@@ -65,13 +65,15 @@ def block_sign_centroid(par):
     x = par[1][0]
     y = par[1][1]
     #
-    x1 = x[0]
-    x2 = x[1]
+    #x1 = x[0]
+    #x2 = x[1]
     #
     #print ("par: median={0}, x={1}, y={2}".format(np.nanmedian(data),x, y))
     data = data - np.nanmedian(data)
     values=[]
     for i in range(2):
+        x1 = x[i][0]
+        x2 = x[i][1]
         y1 = y[i][0]
         y2 = y[i][1]
         # get sign

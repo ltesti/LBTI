@@ -46,7 +46,7 @@ class StarDataset(object):
 
     def __init__(self, datadir, fname, startframes, outname, nfrpos=200, 
                  frame_size=400, fill_nan=True, resize=None,
-                 xcen = 615, ylow = 340, dy = 425, dx = 0, plscale = 10.707, width = 2048):
+                 xcen = 615, ylow = 340, dy = 425, dx = 0, plscale = 10.707, height = 1024, width = 2048):
         self.datadir = datadir
         self.fname = fname
         self.startframes = startframes
@@ -77,9 +77,10 @@ class StarDataset(object):
         logging.info("Starting to set up the AB cycles")
         for startframe in self.startframes:
             tss = time.time()
-            mydx = min(xcen*2., (width-xcen)*2.)
+            mydx = width #min(xcen*2., (width-xcen)*2.)
+            mydy = height
             self.abcycles.append(ABCycle(self.datadir, self.fname, startframe, \
-                                         fill_nan = self.fill_nan, nfrpos=self.nfrpos, width = mydx, \
+                                         fill_nan = self.fill_nan, nfrpos=self.nfrpos, height = mydy, width = mydx, \
                                          xcen = xcen, ylow = ylow, dy = dy, dx = dx, plscale = plscale))
             tss = time.time() - tss
             logging.info("  Initialized block starting at {0}, time {1}s".format(startframe,tss))
@@ -165,13 +166,16 @@ class StarDataset(object):
         trot = time.time() - ts
         logging.info("--> Rotation of {0} subcubes complete, time {1}s".format(len(self.startframes),trot))
 
-    def do_write_allsubframes(self,framesdir='./'):
+    def do_write_allsubframes(self,framesdir='./',use_orig_frame_number=True):
         ts = time.time()
         logging.info("Starting write subframes")
         nstart = 0
         for i in range(len(self.startframes)):
             twr = time.time()
-            nstart = nstart + self.abcycles[i].writeframes(nstart,framesdir,self.outname)
+            if use_orig_frame_number:
+                self.abcycles[i].writeframes(self.startframes[i],framesdir,self.outname)
+            else:
+                nstart = nstart + self.abcycles[i].writeframes(nstart,framesdir,self.outname)
             twr = time.time() - twr
             logging.info("  frames written for block starting at {0}, time {1}s".format(self.startframes[i],twr))
         tsub = time.time() - ts
