@@ -159,7 +159,7 @@ class ABCycle(object):
             self.new_plscale = self.plscale / 1000. / 3600.
         else:
             rsfac = resize
-            self.new_plscale = self.plscale * resize / 1000. / 3600.
+            self.new_plscale = self.plscale / resize / 1000. / 3600.
         self.framescube = np.zeros((self.nfrpos*2, rsfac*frame_size, rsfac*frame_size))
         self.has_framescube = True
 
@@ -213,10 +213,10 @@ class ABCycle(object):
         # define the frame and resampling factor
         if resize == None:
             rsfac = 1.
-            self.new_plscale = self.plscale
+            self.new_plscale = self.plscale / 1000. / 3600.
         else:
             rsfac = resize
-            self.new_plscale = self.plscale * resize
+            self.new_plscale = self.plscale / resize /1000. / 3600.
         self.framescube = np.zeros((self.nfrpos*2, rsfac*frame_size, rsfac*frame_size))
         self.has_framescube = True
 
